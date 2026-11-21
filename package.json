@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "pragmatic-postgres: the official Postgres 17 image plus a reconcile on every start that creates one database and one role per application; this repository also builds its component descriptor.",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/pragmatic-tech-ai/pragmatic-postgres.git"
@@ -17,8 +18,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@pragmatic-tech-ai/pragmatic-component": "^0.17.6",
-    "@pragmatic-tech-ai/pragmatic-release-toolkit": "^0.17.6"
+    "@pragmatic-tech-ai/pragmatic-component": "^0.17.7",
+    "@pragmatic-tech-ai/pragmatic-release-toolkit": "^0.17.7"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
