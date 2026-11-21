@@ -19,6 +19,7 @@ jobs:
       node: true
       closure-check: false
       image-test: true
+      start-smoke: false
       arm64: true
       helm-chart: ''
     secrets:

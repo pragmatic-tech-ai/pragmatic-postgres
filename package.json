@@ -17,8 +17,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@pragmatic-tech-ai/pragmatic-component": "^0.17.2",
-    "@pragmatic-tech-ai/pragmatic-release-toolkit": "^0.17.2"
+    "@pragmatic-tech-ai/pragmatic-component": "^0.17.4",
+    "@pragmatic-tech-ai/pragmatic-release-toolkit": "^0.17.4"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
