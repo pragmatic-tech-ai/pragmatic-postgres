@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The pragmatic-postgres image end to end on a docker host: two applications, isolation between them, a restart with a
 # third added (the first two keep their data), a changed password file, refusals that change nothing.
-# Run: bash docker/postgres/tests/image.test.sh <image>   (e.g. ghcr.io/pragmatic-tech-ai/pragmatic-postgres:ci)
+# Run: bash tests/image.test.sh <image>   (e.g. ghcr.io/pragmatic-tech-ai/pragmatic-postgres:ci)
 # Every container, volume and folder it creates is removed when it ends.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

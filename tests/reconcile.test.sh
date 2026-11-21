@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The reconcile plan without a database: configuration parsing, validation and the SQL it prints.
-# Run: bash docker/postgres/tests/reconcile.test.sh
+# Run: bash tests/reconcile.test.sh
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RECONCILE="$HERE/../pragmatic-postgres-reconcile.sh"

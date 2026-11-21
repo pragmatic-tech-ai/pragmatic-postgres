@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1
 # pragmatic-postgres: the official Postgres 17 image plus a reconcile on every start that creates one database and one
 # role per application from a mounted applications file, each role's password from a mounted secret file
-# (docker/README.md, "pragmatic-postgres image"). Built per arch (linux/amd64, linux/arm64) by docker/docker-bake.hcl.
+# (README.md). Built per arch (linux/amd64, linux/arm64) by docker-bake.hcl.
 #
 # The base is pinned by its multi-arch index digest (17.12 on Debian trixie); bump tag and digest together, in both stages.
 #
-# The component descriptor (docker/postgres/pragmatic-postgres-component.ts), emitted by the first bake step into the
+# The component descriptor (src/pragmatic-postgres-component.ts), emitted by the first bake step into the
 # `components` build context (docker-bake.hcl). Checked here against COMPONENT_DIGEST, the label value: the image carries
 # exactly the descriptor its label names (a build without the docker-bake.components.json override stops here).
 FROM postgres:17.12-trixie@sha256:b60e90042aa6b8dbecd58e224b3e36114dbf8ad754465264c2476ad58a86e45c AS component

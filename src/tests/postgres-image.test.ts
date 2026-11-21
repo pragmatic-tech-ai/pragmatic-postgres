@@ -6,11 +6,10 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { ReleaseApp, ReleaseApps } from '@pragmatic-tech-ai/pragmatic-release-toolkit'
 
-/** docker/postgres: the pragmatic-postgres image's Dockerfile, scripts and its place in the bake file. */
+/** The pragmatic-postgres image: its Dockerfile, scripts, its bake target and the workflows that bake it. */
 class PostgresImage
 {
-    public static readonly ServerRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
-    public static readonly Folder = join('docker', 'postgres')
+    public static readonly RepoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
     public static readonly Entrypoint = 'pragmatic-postgres-entrypoint.sh'
     public static readonly Reconcile = 'pragmatic-postgres-reconcile.sh'
     public static readonly ReconcileTests = join('tests', 'reconcile.test.sh')
@@ -20,27 +19,33 @@ class PostgresImage
     public static readonly Shebang = '#!/usr/bin/env bash\n'
     public static readonly Bash = 'bash'
     public static readonly Windows = 'win32'
+    /** The TAP plan line of tests/reconcile.test.sh: its 18 cases, none dropped on the way. */
+    public static readonly ReconcilePlan = /^1\.\.18$/m
     public static readonly NoBashReason = 'bash runs the reconcile tests on Linux (CI) and the hive laptop WSL; Windows has none'
-    public static readonly ClosureFile = join('docker', 'images', 'closure.json')
-    public static readonly BakeFile = join('docker', 'docker-bake.hcl')
+    public static readonly BakeFile = 'docker-bake.hcl'
+    public static readonly CiWorkflow = join('.github', 'workflows', 'ci.yml')
+    public static readonly ReleaseWorkflow = join('.github', 'workflows', 'release.yml')
+    public static readonly PackageJson = 'package.json'
+    public static readonly ClosureCheckField = 'pragmaticClosureCheck'
+    public static readonly DefaultGroup = 'default'
+    public static readonly Arm64Input = 'arm64'
+    public static readonly ClosureCheckInput = 'closure-check'
+    public static readonly ImageTestInput = 'image-test'
+    public static readonly True = 'true'
+    public static readonly False = 'false'
     private static readonly Utf8 = 'utf8'
     private static readonly Continuation = /\\\n/g
     public static readonly Space = ' '
 
     public static Text(...path: string[]): string
     {
-        return readFileSync(join(PostgresImage.ServerRoot, ...path), PostgresImage.Utf8)
-    }
-
-    public static Script(name: string): string
-    {
-        return PostgresImage.Text(PostgresImage.Folder, name)
+        return readFileSync(join(PostgresImage.RepoRoot, ...path), PostgresImage.Utf8)
     }
 
     /** The Dockerfile's instructions, continuation lines joined, comments dropped. */
     public static Instructions(): string[]
     {
-        const text = PostgresImage.Script(PostgresImage.Dockerfile).replace(PostgresImage.Continuation, PostgresImage.Space)
+        const text = PostgresImage.Text(PostgresImage.Dockerfile).replace(PostgresImage.Continuation, PostgresImage.Space)
         return text.split('\n').map(line => line.trim()).filter(line => line.length > 0 && !line.startsWith('#'))
     }
 
@@ -55,6 +60,13 @@ class PostgresImage
         const match = new RegExp('group "' + group + '" ' + /\{\s*targets = \[([^\]]*)\]/.source).exec(PostgresImage.Text(PostgresImage.BakeFile))
         assert.ok(match !== null, group)
         return (match[1].match(/"[^"]+"/g) ?? []).map(member => member.slice(1, -1))
+    }
+
+    /** A `with:` input of a caller workflow (the line `<name>: <value>`). */
+    public static WorkflowInput(workflow: string, name: string): string | undefined
+    {
+        const match = new RegExp('^\\s+' + name + ': (.*)$', 'm').exec(PostgresImage.Text(workflow))
+        return match === null ? undefined : match[1].trim()
     }
 }
 
@@ -118,34 +130,38 @@ describe('pragmatic-postgres image', () =>
     {
         for (const name of [PostgresImage.Entrypoint, PostgresImage.Reconcile, PostgresImage.ReconcileTests, PostgresImage.Harness, PostgresImage.ImageTests, PostgresImage.Dockerfile])
         {
-            assert.ok(!PostgresImage.Script(name).includes('\r'), name)
+            assert.ok(!PostgresImage.Text(name).includes('\r'), name)
         }
         for (const name of [PostgresImage.Entrypoint, PostgresImage.Reconcile, PostgresImage.ReconcileTests, PostgresImage.Harness, PostgresImage.ImageTests])
         {
-            assert.ok(PostgresImage.Script(name).startsWith(PostgresImage.Shebang), name)
+            assert.ok(PostgresImage.Text(name).startsWith(PostgresImage.Shebang), name)
         }
     })
 
-    it('is a multi-arch platform image in the default bake group, not an amd64-only one', () =>
+    it('is a multi-arch image: its own bake target, baked for arm64 too by CI and the release', () =>
     {
         const bake = PostgresImage.Text(PostgresImage.BakeFile)
-        assert.match(bake, /target "pragmatic-postgres" \{\s*context\s*= "pragmatic-server\/docker\/postgres"\s*dockerfile = "Dockerfile"\s*platforms\s*= split\(",", PLATFORMS\)\s*tags\s*= tags\("pragmatic-postgres"\)/)
-        assert.ok(PostgresImage.GroupMembers('default').includes(ReleaseApp.Postgres))
-        assert.ok(!PostgresImage.GroupMembers('amd64-only').includes(ReleaseApp.Postgres))
+        assert.match(bake, /target "pragmatic-postgres" \{\s*context\s*= "\."\s*dockerfile = "Dockerfile"\s*platforms\s*= split\(",", PLATFORMS\)/)
+        assert.ok(PostgresImage.GroupMembers(PostgresImage.DefaultGroup).includes(ReleaseApp.Postgres))
+        assert.equal(PostgresImage.WorkflowInput(PostgresImage.CiWorkflow, PostgresImage.Arm64Input), PostgresImage.True)
+        assert.equal(PostgresImage.WorkflowInput(PostgresImage.ReleaseWorkflow, PostgresImage.Arm64Input), PostgresImage.True)
+        assert.equal(PostgresImage.WorkflowInput(PostgresImage.CiWorkflow, PostgresImage.ImageTestInput), PostgresImage.True)
     })
 
-    it('is a release app but not a Node app: closure.json does not describe it', () =>
+    it('is a release app but not a Node app: no closure check describes it', () =>
     {
         assert.ok(ReleaseApps.All.includes(ReleaseApp.Postgres))
         assert.ok(!ReleaseApps.NodeApps.includes(ReleaseApp.Postgres))
-        const closure = JSON.parse(PostgresImage.Text(PostgresImage.ClosureFile)) as Record<string, unknown>
-        assert.deepEqual(Object.keys(closure).sort(), [...ReleaseApps.NodeApps].sort())
+        const manifest = JSON.parse(PostgresImage.Text(PostgresImage.PackageJson)) as Record<string, unknown>
+        assert.ok(!(PostgresImage.ClosureCheckField in manifest))
+        assert.equal(PostgresImage.WorkflowInput(PostgresImage.CiWorkflow, PostgresImage.ClosureCheckInput), PostgresImage.False)
     })
 
-    it('passes its reconcile tests (docker/postgres/tests/reconcile.test.sh)', { skip: process.platform === PostgresImage.Windows ? PostgresImage.NoBashReason : false }, () =>
+    it('passes its reconcile tests (tests/reconcile.test.sh)', { skip: process.platform === PostgresImage.Windows ? PostgresImage.NoBashReason : false }, () =>
     {
-        const result = spawnSync(PostgresImage.Bash, [join(PostgresImage.ServerRoot, PostgresImage.Folder, PostgresImage.ReconcileTests)], { encoding: 'utf8' })
+        const result = spawnSync(PostgresImage.Bash, [join(PostgresImage.RepoRoot, PostgresImage.ReconcileTests)], { encoding: 'utf8' })
         assert.equal(result.status, 0, result.stdout + result.stderr)
         assert.doesNotMatch(result.stdout, /^not ok/m)
+        assert.match(result.stdout, PostgresImage.ReconcilePlan)
     })
 })
